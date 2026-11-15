@@ -20,6 +20,13 @@ if ([string]::IsNullOrWhiteSpace($config.camera_device)) {
 if ([string]::IsNullOrWhiteSpace($config.stream_path)) {
     throw 'Set stream_path in config.json to a non-empty RTSP path.'
 }
+$videoEncoder = 'libx264'
+if (-not [string]::IsNullOrWhiteSpace($config.video_encoder)) {
+    $videoEncoder = [string]$config.video_encoder
+}
+if ($videoEncoder -cnotmatch '^(libx264|h264_[A-Za-z0-9_]+)$') {
+    throw 'Set video_encoder in config.json to libx264 or an H.264 encoder name such as h264_nvenc, h264_qsv, or h264_amf.'
+}
 if ($config.width -lt 1 -or $config.height -lt 1 -or $config.framerate -lt 1 -or $config.framerate -gt 120) {
     throw 'Set width, height, and framerate in config.json to valid values.'
 }
@@ -102,9 +109,11 @@ paths:
     if (-not [string]::IsNullOrWhiteSpace($config.pixel_format)) {
         $ffmpegArguments += @('-pixel_format', [string]$config.pixel_format)
     }
+    $ffmpegArguments += @('-i', "video=$($config.camera_device)", '-an', '-c:v', $videoEncoder)
+    if ($videoEncoder -ceq 'libx264') {
+        $ffmpegArguments += @('-preset', 'ultrafast', '-tune', 'zerolatency')
+    }
     $ffmpegArguments += @(
-        '-i', "video=$($config.camera_device)",
-        '-an', '-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency',
         '-pix_fmt', 'yuv420p', '-f', 'rtsp', '-rtsp_transport', 'tcp',
         "rtsp://127.0.0.1:$($config.rtsp_port)/$($config.stream_path)"
     )

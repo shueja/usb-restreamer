@@ -4,6 +4,7 @@
   "height": 1080,
   "framerate": 30,
   "pixel_format": "",
+  "video_encoder": "libx264",
   "rtsp_port": 8554,
   "stream_path": "webcam"
 }

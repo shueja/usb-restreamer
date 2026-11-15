@@ -16,9 +16,14 @@ not install software or require administrator privileges.
    FFmpeg prints the device list to the console even though the command reports
    an input error. Copy the exact video device name into `camera_device` in
    `config.json`.
-3. If needed, edit `width`, `height`, `framerate`, `pixel_format`, `rtsp_port`,
-   and `stream_path` in `config.json`. The defaults request 1920x1080 at 30 fps.
-   Leave `pixel_format` empty to let DirectShow choose a supported format.
+3. If needed, edit `width`, `height`, `framerate`, `pixel_format`,
+   `video_encoder`, `rtsp_port`, and `stream_path` in `config.json`. The defaults
+   request 1920x1080 at 30 fps and use the software `libx264` encoder. To use
+   hardware encoding, set `video_encoder` to an H.264 encoder available in the
+   bundled FFmpeg build and supported by your hardware, such as `h264_nvenc`,
+   `h264_qsv`, or `h264_amf`. Leave `pixel_format` empty to let DirectShow choose
+   a supported format. Hardware encoders do not use the `libx264` preset/tune
+   options.
 4. Double-click `start.cmd`. The script starts MediaMTX and FFmpeg together;
    closing the console or pressing Ctrl+C stops both. Logs are written next to
    the scripts.
