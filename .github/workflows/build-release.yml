@@ -1,0 +1,89 @@
+name: Build and release portable bundle
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4.2.2
+
+      - name: Download and assemble portable bundle
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $stage = Join-Path $env:RUNNER_TEMP 'usb-restreamer'
+          $downloads = Join-Path $env:RUNNER_TEMP 'downloads'
+          New-Item -ItemType Directory -Force -Path $stage, $downloads | Out-Null
+
+          Copy-Item config.json, start.ps1, README.md -Destination $stage
+
+          $ffmpegZip = Join-Path $downloads 'ffmpeg.zip'
+          Invoke-WebRequest -Uri 'https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip' -OutFile $ffmpegZip
+          $ffmpegExtract = Join-Path $downloads 'ffmpeg'
+          Expand-Archive -LiteralPath $ffmpegZip -DestinationPath $ffmpegExtract -Force
+          $ffmpeg = Get-ChildItem -LiteralPath $ffmpegExtract -Filter ffmpeg.exe -Recurse | Select-Object -First 1
+          if (-not $ffmpeg) { throw 'The FFmpeg archive did not contain ffmpeg.exe.' }
+          Copy-Item -LiteralPath $ffmpeg.FullName -Destination (Join-Path $stage 'ffmpeg.exe')
+          $ffmpegLicense = Get-ChildItem -LiteralPath $ffmpegExtract -Include 'LICENSE*', 'COPYING*' -File -Recurse | Select-Object -First 1
+          if (-not $ffmpegLicense) { throw 'The FFmpeg archive did not contain its license file.' }
+          Copy-Item -LiteralPath $ffmpegLicense.FullName -Destination (Join-Path $stage 'FFMPEG-LICENSE.txt')
+
+          $headers = @{
+            Authorization = ('Bearer ' + $env:GH_TOKEN)
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          $release = Invoke-RestMethod -Headers $headers -Uri 'https://api.github.com/repos/bluenviron/mediamtx/releases/latest'
+          $asset = $release.assets | Where-Object { $_.name -match '^mediamtx_.*_windows_amd64\.zip$' } | Select-Object -First 1
+          if (-not $asset) { throw "No Windows amd64 MediaMTX asset found in release $($release.tag_name)." }
+          $mediaMtxZip = Join-Path $downloads 'mediamtx.zip'
+          Invoke-WebRequest -Headers $headers -Uri $asset.browser_download_url -OutFile $mediaMtxZip
+          $mediaMtxExtract = Join-Path $downloads 'mediamtx'
+          Expand-Archive -LiteralPath $mediaMtxZip -DestinationPath $mediaMtxExtract -Force
+          $mediaMtx = Get-ChildItem -LiteralPath $mediaMtxExtract -Filter mediamtx.exe -Recurse | Select-Object -First 1
+          if (-not $mediaMtx) { throw 'The MediaMTX archive did not contain mediamtx.exe.' }
+          Copy-Item -LiteralPath $mediaMtx.FullName -Destination (Join-Path $stage 'mediamtx.exe')
+          $mediaMtxLicense = Get-ChildItem -LiteralPath $mediaMtxExtract -Include 'LICENSE*', 'COPYING*' -File -Recurse | Select-Object -First 1
+          if (-not $mediaMtxLicense) { throw 'The MediaMTX archive did not contain its license file.' }
+          Copy-Item -LiteralPath $mediaMtxLicense.FullName -Destination (Join-Path $stage 'MEDIAMTX-LICENSE.txt')
+
+          $versionInfo = "FFmpeg build archive: https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip`nMediaMTX release: $($release.html_url)"
+          Set-Content -LiteralPath (Join-Path $stage 'THIRD-PARTY-SOURCES.txt') -Value $versionInfo
+          $bundle = Join-Path $env:RUNNER_TEMP 'usb-restreamer-windows-x64.zip'
+          Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $bundle -Force
+          "BUNDLE_PATH=$bundle" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: usb-restreamer-windows-x64
+          path: ${{ runner.temp }}/usb-restreamer-windows-x64.zip
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download bundle
+        uses: actions/download-artifact@v4.3.0
+        with:
+          name: usb-restreamer-windows-x64
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" usb-restreamer-windows-x64.zip --title "${{ github.ref_name }}" --generate-notes --verify-tag
