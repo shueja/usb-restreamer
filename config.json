@@ -1,0 +1,9 @@
+{
+  "camera_device": "",
+  "width": 1920,
+  "height": 1080,
+  "framerate": 30,
+  "pixel_format": "",
+  "rtsp_port": 8554,
+  "stream_path": "webcam"
+}
