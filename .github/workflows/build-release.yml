@@ -72,7 +72,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -86,4 +86,11 @@ jobs:
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" usb-restreamer-windows-x64.zip --title "${{ github.ref_name }}" --generate-notes --verify-tag
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            release_tag="$GITHUB_REF_NAME"
+            gh release create "$release_tag" usb-restreamer-windows-x64.zip --title "$release_tag" --generate-notes --verify-tag
+          else
+            release_tag="main-$GITHUB_RUN_NUMBER"
+            gh release create "$release_tag" usb-restreamer-windows-x64.zip --title "$release_tag" --generate-notes --target "$GITHUB_SHA"
+          fi
