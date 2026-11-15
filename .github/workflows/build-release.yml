@@ -89,8 +89,8 @@ jobs:
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             release_tag="$GITHUB_REF_NAME"
-            gh release create "$release_tag" usb-restreamer-windows-x64.zip --title "$release_tag" --generate-notes --verify-tag
+            gh release create "$release_tag" usb-restreamer-windows-x64.zip --repo "$GITHUB_REPOSITORY" --title "$release_tag" --generate-notes --verify-tag
           else
             release_tag="main-$GITHUB_RUN_NUMBER"
-            gh release create "$release_tag" usb-restreamer-windows-x64.zip --title "$release_tag" --generate-notes --target "$GITHUB_SHA"
+            gh release create "$release_tag" usb-restreamer-windows-x64.zip --repo "$GITHUB_REPOSITORY" --title "$release_tag" --generate-notes --target "$GITHUB_SHA"
           fi
