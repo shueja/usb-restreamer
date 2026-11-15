@@ -38,8 +38,9 @@ the client as well.
 
 ## GitHub Actions
 
-Actions builds the Windows x64 ZIP on pushes to `main` and pull requests. Pushing
-a `v*` tag also creates a GitHub Release with GitHub-generated release notes and
-attaches the ZIP. Each build downloads the latest FFmpeg-Builds and MediaMTX
-Windows releases; the bundle includes upstream license files when supplied in
-their archives and a file linking to the upstream build/release.
+Actions builds the Windows x64 ZIP on pushes to `main` and pull requests. Every
+push to `main` publishes a GitHub Release tagged `main-<run number>`; pushing a
+`v*` tag publishes a release using that tag. Releases include GitHub-generated
+release notes and the ZIP. Each build downloads the latest FFmpeg-Builds and
+MediaMTX Windows releases; the bundle includes upstream license files when
+supplied in their archives and a file linking to the upstream build/release.
